@@ -75,7 +75,7 @@ class Completer extends Command
             count($coms) === 1 &&
             $sub === $coms[0]
         ) {
-            if(strpos(end($ext), '-') !== 0){
+            if (strpos(end($ext), '-') !== 0) {
                 return 1;
             }
 
