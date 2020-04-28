@@ -1,0 +1,1 @@
+complete -F __symfony_completer_complete composer
