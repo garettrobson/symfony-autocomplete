@@ -1,0 +1,21 @@
+{
+    "name": "liquidlight/symfony-autocomplete",
+    "type": "project",
+    "require": {
+        "symfony/console": "^5.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8.5"
+    },
+    "authors": [
+        {
+            "name": "Garett Robson",
+            "email": "garett@liquidlight.co.uk"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "LiquidLight\\": "src/"
+        }
+    }
+}
