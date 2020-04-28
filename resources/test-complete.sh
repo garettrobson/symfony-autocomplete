@@ -3,8 +3,8 @@ __symfony_completer_complete()
 {
     local cur
     _get_comp_words_by_ref -n : cur
-    words=(symfony-completer complete ${COMP_WORDS[@]})
-    if [ $RESULT -eq 0 ] then
+    words=$(symfony-completer complete ${COMP_WORDS[@]})
+    if [ $? -eq 0 ]; then
         mapfile -t COMPREPLY < <(echo $words)
     else
         COMPREPLY=($(compgen -o filenames -A file $cur))
