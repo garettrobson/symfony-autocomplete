@@ -12,8 +12,8 @@ class Completer extends Command
 {
     protected static $defaultName = 'completer';
 
-    protected $shellCommand = false;
-    protected $symfonyCommand = false;
+    protected $shellCommand = null;
+    protected $symfonyCommand = null;
 
     protected const COMPLETION_TYPE_COMMAND = 0;
     protected const COMPLETION_TYPE_ARGUMENT = 1;
@@ -74,65 +74,61 @@ class Completer extends Command
     {
         $stdErr = $output->getErrorOutput();
 
-        $this->COMP_CWORD = $input->getOption('COMP_CWORD');
+        $this->COMP_CWORD = (int)$input->getOption('COMP_CWORD');
         $this->COMP_LINE = $input->getOption('COMP_LINE');
-        $this->COMP_POINT = $input->getOption('COMP_POINT');
+        $this->COMP_POINT = (int)$input->getOption('COMP_POINT');
         $this->COMP_WORDBREAKS = $input->getOption('COMP_WORDBREAKS');
         $this->COMP_WORDS = $input->getOption('COMP_WORDS');
-        $this->COMP_CURR = $input->getOption('COMP_CURR');
+        $this->COMP_CURR = preg_replace('/^\'(.*)\'$/i', '$1', $input->getOption('COMP_CURR'));
 
-        $tokens = array_filter(explode(' ', $this->COMP_LINE));
+        $tokens = preg_split('/\s+/', $this->COMP_LINE, -1, PREG_SPLIT_OFFSET_CAPTURE);
 
-        file_put_contents('out.log', 'Tokens: '.json_encode($tokens).PHP_EOL, FILE_APPEND);
-        file_put_contents('out.log', 'Options: '.json_encode($input->getOptions(), JSON_PRETTY_PRINT).PHP_EOL, FILE_APPEND);
-
-        if(!$this->shellCommand) {
-            $this->shellCommand = array_shift($tokens);
+        if (isset($tokens[0]) && !$this->shellCommand) {
+            $this->shellCommand = $tokens[0][0];
         }
 
-        file_put_contents('out.log', 'Shell Command: '.json_encode($this->shellCommand).PHP_EOL, FILE_APPEND);
-
-        if(!$this->symfonyCommand) {
-            $this->symfonyCommand = array_shift($tokens);
+        $tokenIndex = 0;
+        foreach($tokens as $index => $token) {
+            $tokenIndex = $index - 1;
+            if($token[1] > $this->COMP_POINT){
+                break;
+            }
         }
 
-        file_put_contents('out.log', 'Symfony Command: '.json_encode($this->symfonyCommand).PHP_EOL, FILE_APPEND);
-        return 1;
-        $extra = explode(' ', $command);
-        if (count($extra)) {
-            $app = array_shift($extra);
-        }
-        if (count($extra)) {
-            $com = array_shift($extra);
+        if (isset($tokens[1]) && $tokens[1][0] && !$this->symfonyCommand) {
+            $this->symfonyCommand = $tokens[1][0];
         }
 
-
-        $cmd = $app.' --format=json';
-        $json = exec($cmd, $json, $code);
-        $description = json_decode($json);
-
-        $coms = $this->getCommands($description);
-
-        if ($com) {
-            $coms = $this->filterStartingWith($coms, $com);
-        }
-
-        if (count($coms) === 1) {
+        // Are we looking up the command, even if we think we have it
+        if($tokenIndex===0) {
+            $cmd = $this->shellCommand.' --format=json';
+            $json = exec($cmd, $json, $code);
+            $description = json_decode($json);
+            $coms = $this->getCommands($description);
+            if($this->symfonyCommand){
+                $coms = $this->filterStartingWith(
+                    $coms,
+                    $this->symfonyCommand
+                );
+            }
             echo implode(PHP_EOL, array_filter($coms)).PHP_EOL;
             return 0;
         }
 
-        if (count($extra)) {
-            if (strpos(end($extra), '-') !== 0) {
-                return 1;
-            }
-            $cmd = $app.' help '.$com.' --format=json';
+        if (preg_match('/^-/', $this->COMP_CURR)) {
+            $cmd = $this->shellCommand.' help '.$this->symfonyCommand.' --format=json';
             $json = exec($cmd, $json, $code);
             $description = json_decode($json);
             $coms = $this->getOptions($description);
+            $coms = $this->filterStartingWith(
+                $coms,
+                $this->COMP_CURR
+            );
+            echo implode(PHP_EOL, array_filter($coms)).PHP_EOL;
+            return 0;
         }
-        echo implode(PHP_EOL, array_filter($coms)).PHP_EOL;
-        return 0;
+
+        return 1;
     }
 
     protected function getCommands($description)
@@ -161,11 +157,6 @@ class Completer extends Command
         $result = array_values(array_filter($haystack, function ($str) use ($needle) {
             return strpos($str, $needle) === 0;
         }));
-        if (strpos($needle, ':') !== false) {
-            array_walk($result, function (&$str) use ($needle) {
-                $str = preg_replace('/^.*:/', '', $str);
-            });
-        }
         return $result;
     }
 }

@@ -3,6 +3,7 @@ __symfony_completer_complete()
 {
     local cur
     local command
+    local words
     local args=()
     _get_comp_words_by_ref -n : cur
     #command="symfony-completer completer --COMP_CWORD ${COMP_CWORD@Q} --COMP_LINE ${COMP_LINE@Q} --COMP_POINT ${COMP_POINT@Q} --COMP_WORDBREAKS ${COMP_WORDBREAKS/:} --COMP_WORDS ${COMP_WORDS[@]} --cur ${cur@Q}"
@@ -15,7 +16,7 @@ __symfony_completer_complete()
     words=$(symfony-completer completer "${args[@]}")
     if [ $? -eq 0 ]; then
         mapfile -t COMPREPLY < <(echo "$words")
-    else
+    elif [ $? -eq 1 ]; then
         COMPREPLY=($(compgen -o filenames -A file ${cur@Q}))
     fi
     __ltrim_colon_completions "$cur"
