@@ -122,7 +122,7 @@ class Completer extends Command
             $coms = $this->getOptions($description);
             $coms = $this->filterStartingWith(
                 $coms,
-                $this->COMP_CURR
+                preg_match('/^-$/', $this->COMP_CURR) ? '--' : $this->COMP_CURR
             );
             echo implode(PHP_EOL, array_filter($coms)).PHP_EOL;
             return 0;
