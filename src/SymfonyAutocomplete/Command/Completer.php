@@ -6,10 +6,10 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputOption;
 
 class Completer extends Command
 {
-
     protected static $defaultName = 'completer';
 
     protected function configure()
@@ -17,9 +17,35 @@ class Completer extends Command
         $this
             ->setDescription('Generated autocomplete values for a symfony console command.')
             ->setHelp('Generated autocomplete values for a symfony console command using the JSON formatted output it provides.')
-            ->addArgument(
+            ->addOption(
+                'COMP_CWORD',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'An index into ${COMP_WORDS} of the word containing the current cursor position.'
+            )
+            ->addOption(
+                'COMP_LINE',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'The current command line.'
+            )
+            ->addOption(
+                'COMP_POINT',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'The index of the current cursor position relative to the beginning of the current command. If the current cursor position is at the end of the current command, the value of this variable is equal to ${#COMP_LINE}.'
+            )
+            ->addOption(
+                'COMP_WORDBREAKS',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'The set of characters that the Readline library treats as word separators when performing word completion.'
+            )
+            ->addOption(
                 'COMP_WORDS',
-                InputArgument::REQUIRED
+                null,
+                InputOption::VALUE_REQUIRED,
+                'An array variable consisting of the individual words in the current command line, ${COMP_LINE}.'
             );
     }
 
@@ -27,7 +53,7 @@ class Completer extends Command
     {
         $stdErr = $output->getErrorOutput();
 
-        $command = $input->getArgument('COMP_WORDS');
+        $command = $input->getOption('COMP_WORDS');
         $extra = explode(' ', $command);
         if (count($extra)) {
             $app = array_shift($extra);
