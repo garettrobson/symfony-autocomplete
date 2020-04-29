@@ -88,9 +88,9 @@ class Completer extends Command
         }
 
         $tokenIndex = 0;
-        foreach($tokens as $index => $token) {
+        foreach ($tokens as $index => $token) {
             $tokenIndex = $index - 1;
-            if($token[1] > $this->COMP_POINT){
+            if ($token[1] > $this->COMP_POINT) {
                 break;
             }
         }
@@ -100,12 +100,12 @@ class Completer extends Command
         }
 
         // Are we looking up the command, even if we think we have it
-        if($tokenIndex===0) {
+        if ($tokenIndex===0) {
             $cmd = $this->shellCommand.' --format=json';
             $json = exec($cmd, $json, $code);
             $description = json_decode($json);
             $coms = $this->getCommands($description);
-            if($this->symfonyCommand){
+            if ($this->symfonyCommand) {
                 $coms = $this->filterStartingWith(
                     $coms,
                     $this->symfonyCommand
