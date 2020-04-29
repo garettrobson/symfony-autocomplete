@@ -2,8 +2,17 @@
 __symfony_completer_complete()
 {
     local cur
+    local command
+    local args=()
     _get_comp_words_by_ref -n : cur
-    words=$(symfony-completer completer --COMP_CWORD "$COMP_CWORD" --COMP_LINE "$COMP_LINE" --COMP_POINT "$COMP_POINT" --COMP_WORDBREAKS "$COMP_WORDBREAKS" --COMP_WORDS "$COMP_LINE" )
+    #command="symfony-completer completer --COMP_CWORD ${COMP_CWORD@Q} --COMP_LINE ${COMP_LINE@Q} --COMP_POINT ${COMP_POINT@Q} --COMP_WORDBREAKS ${COMP_WORDBREAKS/:} --COMP_WORDS ${COMP_WORDS[@]} --cur ${cur@Q}"
+    args+=(--COMP_CWORD ${COMP_CWORD@Q})
+    args+=(--COMP_LINE "${COMP_LINE}")
+    args+=(--COMP_POINT ${COMP_POINT})
+    args+=(--COMP_WORDBREAKS ${COMP_WORDBREAKS[@]})
+    args+=(--COMP_WORDS ${COMP_WORDS@Q})
+    args+=(--cur ${cur@Q})
+    words=$(symfony-completer completer "${args[@]}")
     if [ $? -eq 0 ]; then
         mapfile -t COMPREPLY < <(echo "$words")
     else
