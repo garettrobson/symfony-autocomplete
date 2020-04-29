@@ -14,6 +14,8 @@ class Completer extends Command
 
     protected $shellCommand = null;
     protected $symfonyCommand = null;
+    protected $availableCommands = [];
+
     protected $tokenIndex = 0;
     protected $tokens = null;
 
@@ -72,36 +74,20 @@ class Completer extends Command
 
         // Output command options
         if($input->getOption('verbose')) {
-            $output->getErrorOutput()->write(sprintf(
-                "\nOptions: %s",
+            $output->getErrorOutput()->writeln(sprintf(
+                "\nOptions: <info>%s</info>",
                 json_encode($input->getOptions(), JSON_PRETTY_PRINT)
             ));
         }
 
-        $this->tokens = preg_split('/\s+/', $this->COMP_LINE, -1, PREG_SPLIT_OFFSET_CAPTURE);
-
-        foreach ($this->tokens as $index => $token) {
-            $this->tokenIndex = $index - 1;
-            if ($token[1] > $this->COMP_POINT) {
-                break;
-            }
-        }
-
-        if (isset($this->tokens[0]) && !$this->shellCommand) {
-            $this->shellCommand = $this->tokens[0][0];
-        }
-
-        if (isset($this->tokens[1]) && $this->tokens[1][0] && !$this->symfonyCommand) {
-            $this->symfonyCommand = $this->tokens[1][0];
-        }
-
         // Output generated values
         if($input->getOption('verbose')) {
-            $output->getErrorOutput()->write(sprintf(
-                "\n%s",
+            $output->getErrorOutput()->writeln(sprintf(
+                "\nComputed: <info>%s</info>",
                 json_encode([
                     'shellCommand' => $this->shellCommand,
                     'symfonyCommand' => $this->symfonyCommand,
+                    'availableCommands' => $this->availableCommands,
                     'tokens' => $this->tokens,
                     'tokenIndex' => $this->tokenIndex,
                 ], JSON_PRETTY_PRINT)
@@ -109,18 +95,23 @@ class Completer extends Command
         }
 
         if ($this->tokenIndex===0) {
-            // Are we looking up the command
-            $cmd = $this->shellCommand.' --format=json';
-            $json = exec($cmd, $json, $code);
-            $description = json_decode($json);
-            $coms = $this->getCommands($description);
+            $commands = $this->availableCommands;
             if ($this->symfonyCommand) {
-                $coms = $this->filterStartingWith(
-                    $coms,
+                $commands = $this->filterStartingWith(
+                    $commands,
                     $this->symfonyCommand
                 );
             }
-            echo implode(PHP_EOL, array_filter($coms)).PHP_EOL;
+
+            // Output command suggestions
+            if($input->getOption('verbose')) {
+                $output->getErrorOutput()->writeln(sprintf(
+                    "\nCommand Suggestions: <info>%s</info>",
+                    json_encode($commands, JSON_PRETTY_PRINT)
+                ));
+            }
+
+            echo implode(PHP_EOL, array_filter($commands)).PHP_EOL;
             return 0;
         } elseif (preg_match('/^-/', $this->COMP_CURR)) {
             // We are looking up an option
@@ -132,6 +123,15 @@ class Completer extends Command
                 $coms,
                 preg_match('/^-$/', $this->COMP_CURR) ? '--' : $this->COMP_CURR
             );
+
+            // Output option suggestions
+            if($input->getOption('verbose')) {
+                $output->getErrorOutput()->writeln(sprintf(
+                    "\nOption Suggestions: <info>%s</info>",
+                    json_encode($coms, JSON_PRETTY_PRINT)
+                ));
+            }
+
             echo implode(PHP_EOL, array_filter($coms)).PHP_EOL;
             return 0;
         }
@@ -147,6 +147,28 @@ class Completer extends Command
         $this->COMP_WORDBREAKS = $input->getOption('COMP_WORDBREAKS');
         $this->COMP_WORDS = $input->getOption('COMP_WORDS');
         $this->COMP_CURR = preg_replace('/^\'(.*)\'$/i', '$1', $input->getOption('COMP_CURR'));
+
+        //$this->tokens = preg_split('/[^\s"\']+|"([^"]*)"|\'([^\']*)\'/', $this->COMP_LINE, -1, PREG_SPLIT_OFFSET_CAPTURE);
+        $this->tokens = preg_split('/\s+/', $this->COMP_LINE, -1, PREG_SPLIT_OFFSET_CAPTURE);
+
+        foreach ($this->tokens as $index => $token) {
+            $this->tokenIndex = $index - 1;
+            if ($token[1] > $this->COMP_POINT) {
+                break;
+            }
+        }
+
+        if (isset($this->tokens[0]) && !$this->shellCommand) {
+            $this->shellCommand = $this->tokens[0][0];
+        }
+
+        $json = null;
+        exec($this->shellCommand.' --format=json', $json, $code);
+        $this->availableCommands = $this->getCommands(json_decode(implode(PHP_EOL, $json)));
+
+        if (isset($this->tokens[1]) && $this->tokens[1][0] && !$this->symfonyCommand) {
+            $this->symfonyCommand = $this->tokens[1][0];
+        }
     }
 
 
