@@ -24,3 +24,4 @@ __symfony_completer_complete()
     __ltrim_colon_completions "$cur"
     return 0
 }
+complete -F __symfony_completer_complete symfony-completer
