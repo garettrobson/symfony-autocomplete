@@ -18,7 +18,7 @@ class Install extends Command
 
     protected const SOURCE_DIR = __DIR__.'/../../../';
 
-        protected const SCRIPT = [
+    protected const SCRIPT = [
         'app' => [
             'symfony-completer.sh'
         ],
@@ -64,13 +64,13 @@ class Install extends Command
         $output->writeln('<comment>Gathering links</comment>');
         if ($input->getOption('app')) {
             $output->writeln(' +app');
-            foreach(static::SCRIPT['app'] as $file){
+            foreach (static::SCRIPT['app'] as $file) {
                 $links[realpath(static::SOURCE_DIR.$file)] = static::BIN_DIR.preg_replace('/\.sh$/', '', $file);
             }
         }
         if ($input->getOption('script')) {
             $output->writeln(' +script');
-            foreach(static::SCRIPT['script'] as $file){
+            foreach (static::SCRIPT['script'] as $file) {
                 $links[realpath(static::SOURCE_DIR.'resources/'.$file)] = static::SCRIPT_DIR.$file;
             }
         }
@@ -80,7 +80,8 @@ class Install extends Command
         return $links;
     }
 
-    protected function showStatus(array $links, InputInterface $input, OutputInterface $output){
+    protected function showStatus(array $links, InputInterface $input, OutputInterface $output)
+    {
         if ($input->getOption('status')) {
             $output->writeln('');
             $output->writeln('<comment>File status</comment>');
@@ -93,13 +94,14 @@ class Install extends Command
         }
     }
 
-    protected function fileStatus(string $path, InputInterface $input, OutputInterface $output) {
+    protected function fileStatus(string $path, InputInterface $input, OutputInterface $output)
+    {
         $str = sprintf(
             '<%s>%s</%1$s>',
             file_exists($path) ? 'info' : 'error',
             $path
         );
-        if(is_link($path)) {
+        if (is_link($path)) {
             $str .= sprintf(
                 ' -> <%s>%s</%1$s>',
                 'info',
