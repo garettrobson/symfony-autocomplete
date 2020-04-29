@@ -76,7 +76,14 @@ class Completer extends Command
         if($input->getOption('verbose')) {
             $output->getErrorOutput()->writeln(sprintf(
                 "\nOptions: <info>%s</info>",
-                json_encode($input->getOptions(), JSON_PRETTY_PRINT)
+                json_encode([
+                    'COMP_CWORD' => $this->COMP_CWORD,
+                    'COMP_LINE' => $this->COMP_LINE,
+                    'COMP_WORDBREAKS' => $this->COMP_WORDBREAKS,
+                    'COMP_POINT' => $this->COMP_POINT,
+                    'COMP_WORDS' => $this->COMP_WORDS,
+                    'COMP_CURR' => $this->COMP_CURR,
+                ], JSON_PRETTY_PRINT)
             ));
         }
 
