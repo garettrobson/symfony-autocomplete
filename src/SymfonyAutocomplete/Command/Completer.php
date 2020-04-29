@@ -14,12 +14,8 @@ class Completer extends Command
 
     protected $shellCommand = null;
     protected $symfonyCommand = null;
-
-    protected const COMPLETION_TYPE_COMMAND = 0;
-    protected const COMPLETION_TYPE_ARGUMENT = 1;
-    protected const COMPLETION_TYPE_OPTION = 2;
-
-    protected $completionType = 0;
+    protected $tokenIndex = 0;
+    protected $tokens = null;
 
     protected $COMP_CWORD = false;
     protected $COMP_LINE = false;
@@ -72,35 +68,48 @@ class Completer extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $stdErr = $output->getErrorOutput();
+        $this->loadProperties($input);
 
-        $this->COMP_CWORD = (int)$input->getOption('COMP_CWORD');
-        $this->COMP_LINE = $input->getOption('COMP_LINE');
-        $this->COMP_POINT = (int)$input->getOption('COMP_POINT');
-        $this->COMP_WORDBREAKS = $input->getOption('COMP_WORDBREAKS');
-        $this->COMP_WORDS = $input->getOption('COMP_WORDS');
-        $this->COMP_CURR = preg_replace('/^\'(.*)\'$/i', '$1', $input->getOption('COMP_CURR'));
-
-        $tokens = preg_split('/\s+/', $this->COMP_LINE, -1, PREG_SPLIT_OFFSET_CAPTURE);
-
-        if (isset($tokens[0]) && !$this->shellCommand) {
-            $this->shellCommand = $tokens[0][0];
+        // Output command options
+        if($input->getOption('verbose')) {
+            $output->getErrorOutput()->write(sprintf(
+                "\nOptions: %s",
+                json_encode($input->getOptions(), JSON_PRETTY_PRINT)
+            ));
         }
 
-        $tokenIndex = 0;
-        foreach ($tokens as $index => $token) {
-            $tokenIndex = $index - 1;
+        $this->tokens = preg_split('/\s+/', $this->COMP_LINE, -1, PREG_SPLIT_OFFSET_CAPTURE);
+
+        foreach ($this->tokens as $index => $token) {
+            $this->tokenIndex = $index - 1;
             if ($token[1] > $this->COMP_POINT) {
                 break;
             }
         }
 
-        if (isset($tokens[1]) && $tokens[1][0] && !$this->symfonyCommand) {
-            $this->symfonyCommand = $tokens[1][0];
+        if (isset($this->tokens[0]) && !$this->shellCommand) {
+            $this->shellCommand = $this->tokens[0][0];
         }
 
-        // Are we looking up the command, even if we think we have it
-        if ($tokenIndex===0) {
+        if (isset($this->tokens[1]) && $this->tokens[1][0] && !$this->symfonyCommand) {
+            $this->symfonyCommand = $this->tokens[1][0];
+        }
+
+        // Output generated values
+        if($input->getOption('verbose')) {
+            $output->getErrorOutput()->write(sprintf(
+                "\n%s",
+                json_encode([
+                    'shellCommand' => $this->shellCommand,
+                    'symfonyCommand' => $this->symfonyCommand,
+                    'tokens' => $this->tokens,
+                    'tokenIndex' => $this->tokenIndex,
+                ], JSON_PRETTY_PRINT)
+            ));
+        }
+
+        if ($this->tokenIndex===0) {
+            // Are we looking up the command
             $cmd = $this->shellCommand.' --format=json';
             $json = exec($cmd, $json, $code);
             $description = json_decode($json);
@@ -113,9 +122,8 @@ class Completer extends Command
             }
             echo implode(PHP_EOL, array_filter($coms)).PHP_EOL;
             return 0;
-        }
-
-        if (preg_match('/^-/', $this->COMP_CURR)) {
+        } elseif (preg_match('/^-/', $this->COMP_CURR)) {
+            // We are looking up an option
             $cmd = $this->shellCommand.' help '.$this->symfonyCommand.' --format=json';
             $json = exec($cmd, $json, $code);
             $description = json_decode($json);
@@ -130,6 +138,17 @@ class Completer extends Command
 
         return 1;
     }
+
+    protected function loadProperties(InputInterface $input){
+        // Bind all the command line options up
+        $this->COMP_CWORD = (int)$input->getOption('COMP_CWORD');
+        $this->COMP_LINE = $input->getOption('COMP_LINE');
+        $this->COMP_POINT = (int)$input->getOption('COMP_POINT');
+        $this->COMP_WORDBREAKS = $input->getOption('COMP_WORDBREAKS');
+        $this->COMP_WORDS = $input->getOption('COMP_WORDS');
+        $this->COMP_CURR = preg_replace('/^\'(.*)\'$/i', '$1', $input->getOption('COMP_CURR'));
+    }
+
 
     protected function getCommands($description)
     {
