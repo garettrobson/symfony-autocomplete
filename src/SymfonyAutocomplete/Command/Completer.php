@@ -12,6 +12,21 @@ class Completer extends Command
 {
     protected static $defaultName = 'completer';
 
+    protected $shellCommand = false;
+    protected $symfonyCommand = false;
+
+    protected const COMPLETION_TYPE_COMMAND = 0;
+    protected const COMPLETION_TYPE_ARGUMENT = 1;
+    protected const COMPLETION_TYPE_OPTION = 2;
+
+    protected $completionType = 0;
+
+    protected $COMP_CWORD = false;
+    protected $COMP_LINE = false;
+    protected $COMP_POINT = false;
+    protected $COMP_WORDBREAKS = false;
+    protected $COMP_WORDS = false;
+
     protected function configure()
     {
         $this
@@ -46,6 +61,12 @@ class Completer extends Command
                 null,
                 InputOption::VALUE_REQUIRED,
                 'An array variable consisting of the individual words in the current command line, ${COMP_LINE}.'
+            )
+            ->addOption(
+                'COMP_CURR',
+                null,
+                InputOption::VALUE_REQUIRED,
+                "The current word being processed."
             );
     }
 
@@ -53,7 +74,30 @@ class Completer extends Command
     {
         $stdErr = $output->getErrorOutput();
 
-        $command = $input->getOption('COMP_WORDS');
+        $this->COMP_CWORD = $input->getOption('COMP_CWORD');
+        $this->COMP_LINE = $input->getOption('COMP_LINE');
+        $this->COMP_POINT = $input->getOption('COMP_POINT');
+        $this->COMP_WORDBREAKS = $input->getOption('COMP_WORDBREAKS');
+        $this->COMP_WORDS = $input->getOption('COMP_WORDS');
+        $this->COMP_CURR = $input->getOption('COMP_CURR');
+
+        $tokens = array_filter(explode(' ', $this->COMP_LINE));
+
+        file_put_contents('out.log', 'Tokens: '.json_encode($tokens).PHP_EOL, FILE_APPEND);
+        file_put_contents('out.log', 'Options: '.json_encode($input->getOptions(), JSON_PRETTY_PRINT).PHP_EOL, FILE_APPEND);
+
+        if(!$this->shellCommand) {
+            $this->shellCommand = array_shift($tokens);
+        }
+
+        file_put_contents('out.log', 'Shell Command: '.json_encode($this->shellCommand).PHP_EOL, FILE_APPEND);
+
+        if(!$this->symfonyCommand) {
+            $this->symfonyCommand = array_shift($tokens);
+        }
+
+        file_put_contents('out.log', 'Symfony Command: '.json_encode($this->symfonyCommand).PHP_EOL, FILE_APPEND);
+        return 1;
         $extra = explode(' ', $command);
         if (count($extra)) {
             $app = array_shift($extra);
@@ -61,6 +105,7 @@ class Completer extends Command
         if (count($extra)) {
             $com = array_shift($extra);
         }
+
 
         $cmd = $app.' --format=json';
         $json = exec($cmd, $json, $code);
