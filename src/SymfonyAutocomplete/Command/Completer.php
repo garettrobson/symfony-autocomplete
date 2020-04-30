@@ -156,8 +156,13 @@ class Completer extends Command
         $this->COMP_WORDS = $input->getOption('COMP_WORDS');
         $this->COMP_CURR = preg_replace('/^\'(.*)\'$/i', '$1', $input->getOption('COMP_CURR'));
 
-        //$this->tokens = preg_split('/[^\s"\']+|"([^"]*)"|\'([^\']*)\'/', $this->COMP_LINE, -1, PREG_SPLIT_OFFSET_CAPTURE);
-        $this->tokens = preg_split('/\s+/', $this->COMP_LINE, -1, PREG_SPLIT_OFFSET_CAPTURE);
+        //$this->tokens = preg_split('/\s+/', $this->COMP_LINE, -1, PREG_SPLIT_OFFSET_CAPTURE);
+        preg_match_all('/[^\s"\']+|"([^"]*)"|\'([^\']*)|\'/', $this->COMP_LINE, $this->tokens, PREG_OFFSET_CAPTURE|PREG_UNMATCHED_AS_NULL);
+        $this->tokens = $this->tokens[0];
+
+        if(strlen($this->COMP_LINE) <= $this->COMP_POINT && $this->COMP_CURR === '') {
+            $this->tokens[] = ['', $this->COMP_POINT];
+        }
 
         foreach ($this->tokens as $index => $token) {
             $this->tokenIndex = $index - 1;
