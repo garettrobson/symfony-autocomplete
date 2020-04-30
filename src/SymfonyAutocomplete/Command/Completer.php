@@ -13,8 +13,14 @@ class Completer extends Command
     protected static $defaultName = 'completer';
 
     protected $shellCommand = null;
+    protected $shellCommandOptions = [];
+    protected $shellCommandArguments = [];
+    protected $symfonyCommandsAvailable = [];
+
     protected $symfonyCommand = null;
-    protected $availableCommands = [];
+    protected $availableCommandOptions = [];
+    protected $availableCommandArguments = [];
+
 
     protected $tokenIndex = 0;
     protected $tokens = null;
@@ -95,7 +101,7 @@ class Completer extends Command
                 json_encode([
                     'shellCommand' => $this->shellCommand,
                     'symfonyCommand' => $this->symfonyCommand,
-                    'availableCommands' => $this->availableCommands,
+                    'symfonyCommandsAvailable' => $this->symfonyCommandsAvailable,
                     'tokens' => $this->tokens,
                     'tokenIndex' => $this->tokenIndex,
                 ], JSON_PRETTY_PRINT)
@@ -108,7 +114,7 @@ class Completer extends Command
 
         if ($this->tokenIndex<=0) {
             // Are we looking up the command
-            $commands = $this->availableCommands;
+            $commands = array_column((array)$this->symfonyCommandsAvailable, 'name');
             if ($this->symfonyCommand) {
                 $commands = $this->filterStartingWith(
                     $commands,
@@ -176,27 +182,25 @@ class Completer extends Command
             }
         }
 
+        // The first parameter will be the shell command to work with
         if (isset($this->tokens[0]) && !$this->shellCommand) {
             $this->shellCommand = $this->tokens[0][0];
         }
 
         $json = null;
         exec($this->shellCommand.' --format=json', $json, $code);
-        $this->availableCommands = $this->getCommands(json_decode(implode(PHP_EOL, $json)));
+        $data = json_decode(implode(PHP_EOL, $json));
+        $this->symfonyCommandsAvailable = $data->commands;
+
+        $json = null;
+        exec($this->shellCommand.' help --format=json', $json, $code);
+        $data = json_decode(implode(PHP_EOL, $json));
+        $this->shellCommandArguments = $data->definition->arguments;
+        $this->shellCommandOptions = $data->definition->options;
 
         if (isset($this->tokens[1]) && $this->tokens[1][0] && !$this->symfonyCommand) {
             $this->symfonyCommand = $this->tokens[1][0];
         }
-    }
-
-
-    protected function getCommands($description)
-    {
-        $commands = [];
-        foreach ($description->commands as $command) {
-            $commands[] = $command->name;
-        }
-        return array_values(array_unique($commands));
     }
 
     protected function getOptions($description)
