@@ -102,7 +102,12 @@ class Completer extends Command
             ));
         }
 
-        if ($this->tokenIndex===0) {
+        if (preg_match('/^-/', $this->symfonyCommand)) {
+            return 2;
+        }
+
+        if ($this->tokenIndex<=0) {
+            // Are we looking up the command
             $commands = $this->availableCommands;
             if ($this->symfonyCommand) {
                 $commands = $this->filterStartingWith(
