@@ -79,6 +79,7 @@ class Completer extends Command
                 json_encode([
                     'COMP_CWORD' => $this->COMP_CWORD,
                     'COMP_LINE' => $this->COMP_LINE,
+                    'COMP_LINE#' => strlen($this->COMP_LINE),
                     'COMP_WORDBREAKS' => $this->COMP_WORDBREAKS,
                     'COMP_POINT' => $this->COMP_POINT,
                     'COMP_WORDS' => $this->COMP_WORDS,
