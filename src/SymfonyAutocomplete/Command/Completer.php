@@ -15,11 +15,12 @@ class Completer extends Command
     protected $shellCommand = null;
     protected $shellCommandOptions = [];
     protected $shellCommandArguments = [];
+
     protected $symfonyCommandsAvailable = [];
 
     protected $symfonyCommand = null;
-    protected $availableCommandOptions = [];
-    protected $availableCommandArguments = [];
+    protected $symfonyCommandOptions = [];
+    protected $symfonyCommandArguments = [];
 
 
     protected $tokenIndex = 0;
@@ -30,6 +31,15 @@ class Completer extends Command
     protected $COMP_POINT = false;
     protected $COMP_WORDBREAKS = false;
     protected $COMP_WORDS = false;
+
+    protected const TOKEN_MODE_AP    = -1; # 111
+    protected const TOKEN_TYPE_APCMD = -4; # 100
+    protected const TOKEN_TYPE_APARG = -3; # 101
+    protected const TOKEN_TYPE_APOPT = -2; # 110
+    protected const TOKEN_TYPE_SFCMD =  0; # 000
+    protected const TOKEN_TYPE_SFARG =  1; # 001
+    protected const TOKEN_TYPE_SFOPT =  2; # 010
+    protected const TOKEN_MODE_COMPO =  3; # 011
 
     protected function configure()
     {
@@ -76,10 +86,11 @@ class Completer extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        //$input->setOption('verbose', 1);
         $this->loadProperties($input);
 
         // Output command options
-        if($input->getOption('verbose')) {
+        if ($input->getOption('verbose')) {
             $output->getErrorOutput()->writeln(sprintf(
                 "\nOptions: <info>%s</info>",
                 json_encode([
@@ -95,70 +106,72 @@ class Completer extends Command
         }
 
         // Output generated values
-        if($input->getOption('verbose')) {
+        if ($input->getOption('verbose')) {
             $output->getErrorOutput()->writeln(sprintf(
                 "\nComputed: <info>%s</info>",
                 json_encode([
                     'shellCommand' => $this->shellCommand,
                     'symfonyCommand' => $this->symfonyCommand,
-                    'symfonyCommandsAvailable' => $this->symfonyCommandsAvailable,
+                    'shellCommandOptions' => implode(', ', array_keys($this->shellCommandOptions)),
+                    'shellCommandArguments' => implode(', ', array_keys($this->shellCommandArguments)),
+                    'symfonyCommandsAvailable' => implode(', ', array_keys($this->symfonyCommandsAvailable)),
+                    'symfonyCommandOptions' => implode(', ', array_keys($this->symfonyCommandOptions ?? [])),
+                    'symfonyCommandArguments' => implode(', ', array_keys($this->symfonyCommandArguments ?? [])),
                     'tokens' => $this->tokens,
                     'tokenIndex' => $this->tokenIndex,
                 ], JSON_PRETTY_PRINT)
             ));
         }
 
-        if (preg_match('/^-/', $this->symfonyCommand)) {
-            return 2;
-        }
+        $suggestions = [];
 
-        if ($this->tokenIndex<=0) {
-            // Are we looking up the command
-            $commands = array_column((array)$this->symfonyCommandsAvailable, 'name');
-            if ($this->symfonyCommand) {
-                $commands = $this->filterStartingWith(
-                    $commands,
-                    $this->symfonyCommand
+        switch($this->tokens[$this->tokenIndex][2]) {
+            case static::TOKEN_TYPE_APCMD:
+            case static::TOKEN_TYPE_APARG:
+            case static::TOKEN_TYPE_APOPT:
+            case static::TOKEN_TYPE_SFCMD:
+                $suggestions = array_merge(
+                    $suggestions,
+                    array_keys($this->shellCommandOptions),
+                    array_keys($this->shellCommandArguments),
+                    array_keys($this->symfonyCommandsAvailable),
+                    array_keys($this->shellCommandOptions)
                 );
-            }
-
-            // Output command suggestions
-            if($input->getOption('verbose')) {
+                break;
+            case static::TOKEN_TYPE_SFARG:
+            case static::TOKEN_TYPE_SFOPT:
+                $suggestions = array_merge(
+                    $suggestions,
+                    array_keys($this->symfonyCommandArguments)
+                );
+                $suggestions = array_merge(
+                    $suggestions,
+                    array_keys($this->symfonyCommandOptions)
+                );
+                break;
+            default:
                 $output->getErrorOutput()->writeln(sprintf(
-                    "\nCommand Suggestions: <info>%s</info>",
-                    json_encode($commands, JSON_PRETTY_PRINT)
+                    "\nHow did we get here?"
                 ));
-            }
-
-            echo implode(PHP_EOL, array_filter($commands)).PHP_EOL;
-            return 0;
-        } elseif (preg_match('/^-/', $this->COMP_CURR)) {
-            // We are looking up an option
-            $cmd = $this->shellCommand.' help '.$this->symfonyCommand.' --format=json';
-            $json = exec($cmd, $json, $code);
-            $description = json_decode($json);
-            $coms = $this->getOptions($description);
-            $coms = $this->filterStartingWith(
-                $coms,
-                preg_match('/^-$/', $this->COMP_CURR) ? '--' : $this->COMP_CURR
-            );
-
-            // Output option suggestions
-            if($input->getOption('verbose')) {
-                $output->getErrorOutput()->writeln(sprintf(
-                    "\nOption Suggestions: <info>%s</info>",
-                    json_encode($coms, JSON_PRETTY_PRINT)
-                ));
-            }
-
-            echo implode(PHP_EOL, array_filter($coms)).PHP_EOL;
-            return 0;
+                break;
         }
 
+        if($this->COMP_CURR !== '') {
+            $suggestions = $this->filterStartingWith(
+                $suggestions,
+                $this->COMP_CURR
+            );
+        }
+
+        if(count($suggestions)){
+            echo implode(PHP_EOL, array_filter($suggestions)).PHP_EOL;
+            return 0;
+        }
         return 1;
     }
 
-    protected function loadProperties(InputInterface $input){
+    protected function loadProperties(InputInterface $input)
+    {
         // Bind all the command line options up
         $this->COMP_CWORD = (int)$input->getOption('COMP_CWORD');
         $this->COMP_LINE = $input->getOption('COMP_LINE');
@@ -171,17 +184,6 @@ class Completer extends Command
         preg_match_all('/[^\s"\']+|"([^"]*)"|\'([^\']*)|\'/', $this->COMP_LINE, $this->tokens, PREG_OFFSET_CAPTURE|PREG_UNMATCHED_AS_NULL);
         $this->tokens = $this->tokens[0];
 
-        if(strlen($this->COMP_LINE) <= $this->COMP_POINT && $this->COMP_CURR === '') {
-            $this->tokens[] = ['', $this->COMP_POINT];
-        }
-
-        foreach ($this->tokens as $index => $token) {
-            $this->tokenIndex = $index - 1;
-            if ($token[1] > $this->COMP_POINT) {
-                break;
-            }
-        }
-
         // The first parameter will be the shell command to work with
         if (isset($this->tokens[0]) && !$this->shellCommand) {
             $this->shellCommand = $this->tokens[0][0];
@@ -189,17 +191,76 @@ class Completer extends Command
 
         $json = null;
         exec($this->shellCommand.' --format=json', $json, $code);
-        $data = json_decode(implode(PHP_EOL, $json));
-        $this->symfonyCommandsAvailable = $data->commands;
+        $data = json_decode(implode(PHP_EOL, $json), true);
+        $this->symfonyCommandsAvailable = array_column($data['commands'], null, 'name');
 
         $json = null;
         exec($this->shellCommand.' help --format=json', $json, $code);
-        $data = json_decode(implode(PHP_EOL, $json));
-        $this->shellCommandArguments = $data->definition->arguments;
-        $this->shellCommandOptions = $data->definition->options;
+        $data = json_decode(implode(PHP_EOL, $json), true);
+        $this->shellCommandArguments = array_change_key_case(array_column($data['definition']['arguments'], null, 'name'), CASE_UPPER);
+        $this->shellCommandOptions = array_column($data['definition']['options'], null, 'name');
 
-        if (isset($this->tokens[1]) && $this->tokens[1][0] && !$this->symfonyCommand) {
-            $this->symfonyCommand = $this->tokens[1][0];
+        if (strlen($this->COMP_LINE) <= $this->COMP_POINT && $this->COMP_CURR === '') {
+            $this->tokens[] = ['', $this->COMP_POINT];
+        }
+
+        $lastTokenType = static::TOKEN_TYPE_APCMD;
+        foreach ($this->tokens as $i => $token) {
+            $index = count($this->tokens[$i]);
+            $this->tokens[$i][]=null;
+            $this->tokens[$i][]=null;
+            if ($this->COMP_POINT >= $token[1]) {
+                $this->tokenIndex = $i;
+            }
+
+            $thisTokenType = static::TOKEN_TYPE_APCMD;
+            if ($i === 0) {
+                // The first one is the shell command
+                $thisTokenType = static::TOKEN_TYPE_APCMD;
+            } else {
+                $value = $token[0];
+                $position = $token[1];
+                // is part of the base command
+                if ($lastTokenType & static::TOKEN_TYPE_APCMD) {
+                    $this->tokens[$i][$index+1] = false;
+                    if (preg_match('/^-/', $value)) {
+                        if(in_array($value, array_keys($this->shellCommandOptions))) {
+                            $thisTokenType = static::TOKEN_TYPE_APOPT;
+                        } else {
+                            $thisTokenType = static::TOKEN_TYPE_APARG;
+                        }
+                    } else {
+                        if(in_array($value, array_keys($this->symfonyCommandsAvailable))) {
+                            $thisTokenType = static::TOKEN_TYPE_SFCMD;
+                            $this->symfonyCommand = $value;
+                        } else {
+                            $thisTokenType = static::TOKEN_TYPE_APARG;
+                        }
+                    }
+                    //$output->getErrorOutput()->writeln(sprintf("\nTime: <info>DIED</info>"));
+                } else {
+                    $this->tokens[$i][$index+1] = true;
+                    if (preg_match('/^-/', $value)) {
+                        $thisTokenType = static::TOKEN_TYPE_SFOPT;
+                    } else {
+                        if(in_array($value, array_keys($this->symfonyCommandsAvailable))) {
+                            $thisTokenType = static::TOKEN_TYPE_SFCMD;
+                            $this->symfonyCommand = $value;
+                        } else {
+                            $thisTokenType = static::TOKEN_TYPE_SFARG;
+                        }
+                    }
+                }
+            }
+            $lastTokenType = $this->tokens[$i][$index] = $thisTokenType;
+        }
+
+        if($this->symfonyCommand) {
+            $json = null;
+            exec($this->shellCommand.' help '.$this->symfonyCommand.' --format=json', $json, $code);
+            $data = json_decode(implode(PHP_EOL, $json), true);
+            $this->symfonyCommandArguments = array_change_key_case($data['definition']['arguments'], CASE_UPPER);
+            $this->symfonyCommandOptions = array_column($data['definition']['options'], null, 'name');
         }
     }
 
@@ -217,9 +278,8 @@ class Completer extends Command
 
     protected function filterStartingWith(array $haystack, string $needle)
     {
-        $result = array_values(array_filter($haystack, function ($str) use ($needle) {
+        return array_filter($haystack, function ($str) use ($needle) {
             return strpos($str, $needle) === 0;
-        }));
-        return $result;
+        });
     }
 }
