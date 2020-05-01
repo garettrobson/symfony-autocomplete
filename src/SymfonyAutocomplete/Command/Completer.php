@@ -125,7 +125,9 @@ class Completer extends Command
 
         $suggestions = [];
 
-        switch($this->tokens[$this->tokenIndex][2]) {
+        $currentToken = $this->tokens[$this->tokenIndex];
+        // Token Type
+        switch ($currentToken[2]) {
             case static::TOKEN_TYPE_APCMD:
             case static::TOKEN_TYPE_APARG:
             case static::TOKEN_TYPE_APOPT:
@@ -134,18 +136,14 @@ class Completer extends Command
                     $suggestions,
                     array_keys($this->shellCommandOptions),
                     array_keys($this->shellCommandArguments),
-                    array_keys($this->symfonyCommandsAvailable),
-                    array_keys($this->shellCommandOptions)
+                    array_keys($this->symfonyCommandsAvailable)
                 );
                 break;
             case static::TOKEN_TYPE_SFARG:
             case static::TOKEN_TYPE_SFOPT:
                 $suggestions = array_merge(
                     $suggestions,
-                    array_keys($this->symfonyCommandArguments)
-                );
-                $suggestions = array_merge(
-                    $suggestions,
+                    array_keys($this->symfonyCommandArguments),
                     array_keys($this->symfonyCommandOptions)
                 );
                 break;
@@ -156,18 +154,49 @@ class Completer extends Command
                 break;
         }
 
-        if($this->COMP_CURR !== '') {
-            $suggestions = $this->filterStartingWith(
-                $suggestions,
-                $this->COMP_CURR
-            );
+        $exitCode = 0;
+
+        if ($needle = $currentToken[0]) {
+            $suggestions = array_filter($suggestions, function ($str) use ($needle) {
+                return strpos($str, $needle) === 0;
+            });
+            if(strpos($this->COMP_WORDBREAKS, $this->COMP_CURR)){
+                $trim = $this->COMP_POINT - $currentToken[1];
+                $suggestions = array_map(function ($suggestion) use ($trim, $output) {
+                    return substr($suggestion, $trim);
+                }, $suggestions);
+            }
         }
 
-        if(count($suggestions)){
-            echo implode(PHP_EOL, array_filter($suggestions)).PHP_EOL;
-            return 0;
+        // If we get this far without a suggestion, throw an error to stop processing
+        switch ($currentToken[0]) {
+            case static::TOKEN_TYPE_APOPT:
+            case static::TOKEN_TYPE_SFOPT:
+                if (!count($suggestions)) {
+                    $exitCode = 2;
+                }
+                break;
         }
-        return 1;
+
+        if (count($suggestions)) {
+            echo implode(PHP_EOL, array_filter($suggestions)).PHP_EOL;
+            //$exitCode = 0;
+        } elseif ($exitCode === 0) {
+            $exitCode = 1;
+        }
+
+        if ($input->getOption('verbose')) {
+            $output->getErrorOutput()->writeln(sprintf(
+                "\nFinal: <info>%s</info>",
+                json_encode([
+                    'suggesting' => implode(', ', $suggestions),
+                    'suggesting#' => count($suggestions),
+                    'exitCode' => $exitCode,
+                    'time' => time(),
+                ], JSON_PRETTY_PRINT)
+            ));
+        }
+        return $exitCode;
     }
 
     protected function loadProperties(InputInterface $input)
@@ -193,12 +222,8 @@ class Completer extends Command
         exec($this->shellCommand.' --format=json', $json, $code);
         $data = json_decode(implode(PHP_EOL, $json), true);
         $this->symfonyCommandsAvailable = array_column($data['commands'], null, 'name');
-
-        $json = null;
-        exec($this->shellCommand.' help --format=json', $json, $code);
-        $data = json_decode(implode(PHP_EOL, $json), true);
-        $this->shellCommandArguments = array_change_key_case(array_column($data['definition']['arguments'], null, 'name'), CASE_UPPER);
-        $this->shellCommandOptions = array_column($data['definition']['options'], null, 'name');
+        $this->shellCommandArguments = [];
+        $this->shellCommandOptions = [];
 
         if (strlen($this->COMP_LINE) <= $this->COMP_POINT && $this->COMP_CURR === '') {
             $this->tokens[] = ['', $this->COMP_POINT];
@@ -224,26 +249,21 @@ class Completer extends Command
                 if ($lastTokenType & static::TOKEN_TYPE_APCMD) {
                     $this->tokens[$i][$index+1] = false;
                     if (preg_match('/^-/', $value)) {
-                        if(in_array($value, array_keys($this->shellCommandOptions))) {
-                            $thisTokenType = static::TOKEN_TYPE_APOPT;
-                        } else {
-                            $thisTokenType = static::TOKEN_TYPE_APARG;
-                        }
+                        $thisTokenType = static::TOKEN_TYPE_APOPT;
                     } else {
-                        if(in_array($value, array_keys($this->symfonyCommandsAvailable))) {
+                        if (in_array($value, array_keys($this->symfonyCommandsAvailable))) {
                             $thisTokenType = static::TOKEN_TYPE_SFCMD;
                             $this->symfonyCommand = $value;
                         } else {
                             $thisTokenType = static::TOKEN_TYPE_APARG;
                         }
                     }
-                    //$output->getErrorOutput()->writeln(sprintf("\nTime: <info>DIED</info>"));
                 } else {
                     $this->tokens[$i][$index+1] = true;
                     if (preg_match('/^-/', $value)) {
                         $thisTokenType = static::TOKEN_TYPE_SFOPT;
                     } else {
-                        if(in_array($value, array_keys($this->symfonyCommandsAvailable))) {
+                        if (in_array($value, array_keys($this->symfonyCommandsAvailable))) {
                             $thisTokenType = static::TOKEN_TYPE_SFCMD;
                             $this->symfonyCommand = $value;
                         } else {
@@ -255,31 +275,50 @@ class Completer extends Command
             $lastTokenType = $this->tokens[$i][$index] = $thisTokenType;
         }
 
-        if($this->symfonyCommand) {
-            $json = null;
-            exec($this->shellCommand.' help '.$this->symfonyCommand.' --format=json', $json, $code);
-            $data = json_decode(implode(PHP_EOL, $json), true);
-            $this->symfonyCommandArguments = array_change_key_case($data['definition']['arguments'], CASE_UPPER);
+        if ($this->symfonyCommand && isset($this->symfonyCommandsAvailable[$this->symfonyCommand])) {
+            $data = $this->symfonyCommandsAvailable[$this->symfonyCommand];
+            $this->symfonyCommandArguments = array_change_key_case(array_column($data['definition']['arguments'], null, 'name'), CASE_UPPER);
             $this->symfonyCommandOptions = array_column($data['definition']['options'], null, 'name');
         }
+
+        $this->shellCommandOptions = $this->decorateOptions($this->shellCommandOptions, static::TOKEN_TYPE_APOPT);
+        $this->symfonyCommandOptions = $this->decorateOptions($this->symfonyCommandOptions, static::TOKEN_TYPE_SFOPT);
     }
 
-    protected function getOptions($description)
+    protected function decorateOptions(array $options, int $type)
     {
-        $options = [];
-        foreach ($description->definition->options as $option) {
-            $options[] = $option->name;
-            foreach (explode('|', $option->shortcut) as $short) {
-                $options[] = $short;
+        $output = [];
+        foreach($this->getBlockedOptions($options, $type) as $key) {
+            unset($options[$key]);
+        }
+
+        foreach ($options as $name => $config) {
+
+            if ($config['accept_value']) {
+                $output[$name.'='] = $config;
+                if (isset($config['default'])) {
+                    $output[$name.'='.$config['default']] = $config;
+                }
+            }
+            if (!$config['is_value_required']) {
+                $output[$name] = $config;
             }
         }
-        return array_values(array_unique($options));
+        return $output;
     }
 
-    protected function filterStartingWith(array $haystack, string $needle)
-    {
-        return array_filter($haystack, function ($str) use ($needle) {
-            return strpos($str, $needle) === 0;
-        });
+    protected function getBlockedOptions(array $options, int $type) {
+        $blocked = [];
+        foreach($this->tokens as $i => $token){
+            if(
+                $this->tokenIndex !== $i &&
+                $token[2] === $type &&
+                isset($options[$token[0]]) &&
+                !$options[$token[0]]['is_multiple']
+            ){
+                $blocked[] = $token[0];
+            }
+        }
+        return $blocked;
     }
 }
