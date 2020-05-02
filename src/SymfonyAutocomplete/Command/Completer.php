@@ -168,19 +168,8 @@ class Completer extends Command
             }
         }
 
-        // If we get this far without a suggestion, throw an error to stop processing
-        switch ($currentToken[0]) {
-            case static::TOKEN_TYPE_APOPT:
-            case static::TOKEN_TYPE_SFOPT:
-                if (!count($suggestions)) {
-                    $exitCode = 2;
-                }
-                break;
-        }
-
         if (count($suggestions)) {
             echo implode(PHP_EOL, array_filter($suggestions)).PHP_EOL;
-            //$exitCode = 0;
         } elseif ($exitCode === 0) {
             $exitCode = 1;
         }

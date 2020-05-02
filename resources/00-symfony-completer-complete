@@ -20,6 +20,7 @@ __symfony_completer_complete()
         mapfile -t COMPREPLY < <(echo "$words")
     elif [ $code -eq 1 ]; then
         COMPREPLY=($(compgen -o filenames -A file ${cur@Q}))
+        code=$?
     fi
     code=$?
     __ltrim_colon_completions "$cur"
