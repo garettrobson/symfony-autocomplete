@@ -160,7 +160,7 @@ class Completer extends Command
             $suggestions = array_filter($suggestions, function ($str) use ($needle) {
                 return strpos($str, $needle) === 0;
             });
-            if(strpos($this->COMP_WORDBREAKS, $this->COMP_CURR)){
+            if (strpos($this->COMP_WORDBREAKS, $this->COMP_CURR)) {
                 $trim = $this->COMP_POINT - $currentToken[1];
                 $suggestions = array_map(function ($suggestion) use ($trim, $output) {
                     return substr($suggestion, $trim);
@@ -211,8 +211,6 @@ class Completer extends Command
         exec($this->shellCommand.' --format=json', $json, $code);
         $data = json_decode(implode(PHP_EOL, $json), true);
         $this->symfonyCommandsAvailable = array_column($data['commands'], null, 'name');
-        $this->shellCommandArguments = [];
-        $this->shellCommandOptions = [];
 
         if (strlen($this->COMP_LINE) <= $this->COMP_POINT && $this->COMP_CURR === '') {
             $this->tokens[] = ['', $this->COMP_POINT];
@@ -277,12 +275,11 @@ class Completer extends Command
     protected function decorateOptions(array $options, int $type)
     {
         $output = [];
-        foreach($this->getBlockedOptions($options, $type) as $key) {
+        foreach ($this->getBlockedOptions($options, $type) as $key) {
             unset($options[$key]);
         }
 
         foreach ($options as $name => $config) {
-
             if ($config['accept_value']) {
                 $output[$name.'='] = $config;
                 if (isset($config['default'])) {
@@ -296,15 +293,16 @@ class Completer extends Command
         return $output;
     }
 
-    protected function getBlockedOptions(array $options, int $type) {
+    protected function getBlockedOptions(array $options, int $type)
+    {
         $blocked = [];
-        foreach($this->tokens as $i => $token){
-            if(
+        foreach ($this->tokens as $i => $token) {
+            if (
                 $this->tokenIndex !== $i &&
                 $token[2] === $type &&
                 isset($options[$token[0]]) &&
                 !$options[$token[0]]['is_multiple']
-            ){
+            ) {
                 $blocked[] = $token[0];
             }
         }
