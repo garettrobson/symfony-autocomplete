@@ -97,7 +97,9 @@ You can either use the shell commands listed under *Commands to perfrom* manuall
 
 ## Working Notes
 
-Used the following to setup my user to have exclusive use of it by adding `/home/{user}/bin` to `$PATH`.
+_[Garett] NB: This was how I've had it setup on Gizmo for my own use only_
+
+Used the following to setup my user to have exclusive use of it by adding `~/bin` to `$PATH`.
 ```
 mkdir ~/bin
 ln -s /path/to/symfony-autocomplete/symfony-completer.sh ~/bin/symfony-completer
