@@ -94,3 +94,20 @@ Commands to perfrom
 ```
 
 You can either use the shell commands listed under *Commands to perfrom* manually to suit your needs or add the `--exec` option to run them automatically. NOTE: These commands use `sudo` and as such you will be prompted for your password.
+
+## Working Notes
+
+Used the following to setup my user to have exclusive use of it by adding `/home/{user}/bin` to `$PATH`.
+```
+mkdir ~/bin
+ln -s /path/to/symfony-autocomplete/symfony-completer.sh ~/bin/symfony-completer
+```
+
+Then in `.bashrc` ...
+```
+PATH=$PATH:~/bin
+
+. /path/to/symfony-autocomplete/resources/00-symfony-completer-complete
+. /path/to/symfony-autocomplete/resources/symfony-completer-composer
+. /path/to/symfony-autocomplete/resources/symfony-completer-test
+```
