@@ -1,0 +1,15 @@
+{
+    "directories": [
+        "src"
+    ],
+    "finder": [
+        {
+            "name": "*.php",
+            "exclude": ["Tests"],
+            "in": "vendor"
+        }
+    ],
+    "main": "symfony-completer.sh",
+    "output": "build/symfony-completer",
+    "compression": "GZ"
+}
