@@ -26,6 +26,9 @@ class Install extends Command
             '00-symfony-completer-complete',
             'symfony-completer-composer',
         ],
+        'typo3' => [
+            'symfony-completer-typo3cms',
+        ],
     ];
 
     protected function configure()
@@ -35,6 +38,7 @@ class Install extends Command
             ->setHelp('Generated autocomplete values for a symfony console command using the JSON formatted output it provides.')
             ->addOption('app', 'a', InputOption::VALUE_NONE, 'Use the application scripts.')
             ->addOption('script', 's', InputOption::VALUE_NONE, 'Use the base scripts.')
+            ->addOption('typo3', 't', InputOption::VALUE_NONE, 'Use the typo3 scripts.')
             ->addOption('status', 'S', InputOption::VALUE_NONE, 'Generate commands to list status of all files.')
             ->addOption('purge', 'p', InputOption::VALUE_NONE, 'Generate purge commands')
             ->addOption('link', 'l', InputOption::VALUE_NONE, 'Generate link commands')
@@ -71,6 +75,12 @@ class Install extends Command
         if ($input->getOption('script')) {
             $output->writeln(' +script');
             foreach (static::SCRIPT['script'] as $file) {
+                $links[realpath(static::SOURCE_DIR.'resources/'.$file)] = static::SCRIPT_DIR.$file;
+            }
+        }
+        if ($input->getOption('typo3')) {
+            $output->writeln(' +typo3');
+            foreach (static::SCRIPT['typo3'] as $file) {
                 $links[realpath(static::SOURCE_DIR.'resources/'.$file)] = static::SCRIPT_DIR.$file;
             }
         }
