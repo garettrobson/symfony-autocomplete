@@ -95,21 +95,22 @@ Commands to perfrom
 
 You can either use the shell commands listed under *Commands to perfrom* manually to suit your needs or add the `--exec` option to run them automatically. NOTE: These commands use `sudo` and as such you will be prompted for your password.
 
-## Working Notes
+## PHAR installation
 
-_[Garett] NB: This was how I've had it setup on Gizmo for my own use only_
+The project contains a Makefile which makes use of box (https://github.com/box-project/box) which can be used to build a compiled PHAR. Simply running `make` will check for that box is available.
+```SHELL
+make # Pre-flight checks
+make compile # Build the PHAR file ./build/symfony-completer
+make rebuild # Clears the build directory and compiles the PHAR again
+```
 
-Used the following to setup my user to have exclusive use of it by adding `~/bin` to `$PATH`.
-```
-mkdir ~/bin
-ln -s /path/to/symfony-autocomplete/symfony-completer.sh ~/bin/symfony-completer
+The Makefile also supports adding the PHAR to `/usr/local/bin` either as a symlink or copy.
+```SHELL
+make install-link # For a symlink
+make install-bin # For a file copy
+make uninstall # Removes /usr/local/bin/symfony-completer
 ```
 
-Then in `.bashrc` ...
-```
-PATH=$PATH:~/bin
+**NOTE:** `install-link` and `install-bin` will both perform a `uninstall` first, to ensure correct expected outcomes.
 
-. /path/to/symfony-autocomplete/resources/00-symfony-completer-complete
-. /path/to/symfony-autocomplete/resources/symfony-completer-composer
-. /path/to/symfony-autocomplete/resources/symfony-completer-test
-```
+If you install symfony completer as a PHAR you will still need to either link or copy various files from `./resoruces` into the `/etc/bash_completion.d/` directroy, such as the `00-symfony-completer-complete` at a minimum. Instructions should be inferable from exploring the other ways to perform installation.
