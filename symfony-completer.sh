@@ -7,9 +7,12 @@ use Symfony\Component\Console\Application;
 use LiquidLight\SymfonyAutocomplete\Command\Completer;
 use LiquidLight\SymfonyAutocomplete\Command\Install;
 
-$application = new Application();
+$application = new Application('Symfony Autocomplete', '0.0.1');
 
 $application->add(new Completer());
-$application->add(new Install());
+
+if(!Phar::running()) {
+    $application->add(new Install());
+}
 
 $application->run();
