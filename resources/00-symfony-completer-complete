@@ -14,7 +14,7 @@ __symfony_completer_complete()
     args+=(--COMP_WORDBREAKS ${COMP_WORDBREAKS[@]})
     args+=(--COMP_CURR ${cur@Q})
     args+=(--COMP_WORDS "${COMP_WORDS}")
-    words=$(symfony-completer completer "${args[@]}")
+    words=$(symfony-completer completer "${args[@]}" 2>/dev/null)
     code=$?
     if [ $code -eq 0 ]; then
         mapfile -t COMPREPLY < <(echo "$words")
