@@ -1,5 +1,7 @@
 <?php
+
 // src/Command/CreateUserCommand.php
+
 namespace LiquidLight\SymfonyAutocomplete\Command;
 
 use Symfony\Component\Console\Command\Command;
